@@ -46,16 +46,31 @@ def getPayload(f,section=".text"):
 		return "\\" + "\\".join(payload), bytes
 	except Exception, e:
 		print e
-		print "Maybe '" + f.name + "' is a bad ELF file..."
 		exit(0)
 
 def splitPayload(payload):
 	for i in xrange(0,len(payload),20):
 		yield payload[i:i+20]
+
+def getRawShellcode(f,outFile,section=".text"):
+	try:
+		e = ELFFile(f)
+		s = e.get_section_by_name(section)
+		fileName = outFile + ".raw"
+		f = open(fileName,'w')
+		f.write(s.data())
+	except Exception, e:
+		print e
+		exit(0)
+
+	if f:
+		f.close()
+		
 	
 def main():
 	parser = argparse.ArgumentParser(prog="sextractor",description="A simple Shellcode extractor from ELF assembly files")
 	parser.add_argument("-f",help="the assembly file to process")
+	parser.add_argument("-r",help="generate a raw shellcode file");
 	parser.add_argument("-C",help="generates a C file containing the payload for testing purpose (do not append extension to file, program will do it for you)")
 	parser.add_argument("-P",help="like -C except that generates a Python file")
 	parser.add_argument("-w",help="show warnings for NULL bytes \\x00",action='store_true')
@@ -65,7 +80,8 @@ def main():
 	shellcode = ""
 	bytes = 0
 	section = ".text"
-	file = None
+	inFile = None
+	outFile = None
 	warnings = False
 	
 	if args.s:
@@ -74,18 +90,16 @@ def main():
 	if args.w:
 		warnings = True
 
-
 	if not args.f:
 		parser.print_help()
 		exit(0)
 	else:
-		file = None
 		try:
-			file = open(args.f,'rb')
+			inFile = open(args.f,'rb')
 		except:
 			print "File " + args.f + " doesn't exists.."
 			exit(0)		
-		shellcode, bytes = getPayload(file,section)
+		shellcode, bytes = getPayload(inFile,section)
 		payGen = splitPayload(shellcode)
 		print
 		for s in payGen:
@@ -101,8 +115,13 @@ def main():
 	if args.P:
 		printFile(args.P,shellcode,format="python")
 
-	if file:
-		file.close()
+	if args.r:
+		outFile = args.r
+		getRawShellcode(inFile,outFile,section)
+
+
+	if inFile:
+		inFile.close()
 
 if __name__ == "__main__":
 	main()
